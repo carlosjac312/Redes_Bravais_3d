@@ -43,10 +43,14 @@ class MainWindow(QMainWindow):
 
         face_spheres = self.crear_esferas_caras(0.72) # esferas para las caras de FCC
 
-        #
-        self.sc_huecos = self.crear_huecos(cornersSC)
-        self.bcc_huecos = self.crear_huecos(cornersBCC)
-        self.fcc_huecos = self.crear_huecos(cornersFCC + face_spheres)
+        side_spheresBCC = self.crear_esferas_lados(0.88) + self.crear_centros_lados(0.88) # esferas para los lados de BCC
+
+        side_spheresFCC = self.crear_lados_fcc(0.72) # esferas para los lados de FCC
+
+        #Crear huecos para cada tipo de red
+        self.sc_huecos = self.crear_huecos(cornersSC, False)
+        self.bcc_huecos = self.crear_huecos(cornersBCC + side_spheresBCC, True)
+        self.fcc_huecos = self.crear_huecos(cornersFCC + face_spheres + side_spheresFCC, True)
 
         self.sc_relleno = self.actor_huecos(self.sc_huecos)
         self.bcc_relleno = self.actor_huecos(self.bcc_huecos)
@@ -192,6 +196,48 @@ class MainWindow(QMainWindow):
         ]
 
         return face_spheres
+    
+    def crear_esferas_lados(self, radio):
+        side_sphere = [(sx * 1, sy * 1, sz * 1)
+               for sx in (+1, -1)
+               for sy in (+3, -3)
+               for sz in (+1, -1)]
+        
+        side_spheres = [
+            clean_tri(pv.Sphere(radius=radio, center=pos,
+                                theta_resolution=60, phi_resolution=60))
+            for pos in side_sphere
+        ]
+
+        return side_spheres
+    
+    def crear_caras_lados(self, radio):
+        side_faces = [
+        (1, 2, 0),
+        (-1, -2, 0),
+        (1, -2, 0),
+        (-1, 2, 0),
+        (0, 2, 1),
+        (0, -2, -1),
+        (0, 2, -1),
+        (0, -2, 1)    
+        ]
+
+        side_face_spheres = [
+            clean_tri(pv.Sphere(radius=radio, center=face,
+                                theta_resolution=60, phi_resolution=60))
+            for face in side_faces
+        ]
+
+        return side_face_spheres
+    
+    def crear_lados_fcc(self, radio):
+        return self.crear_caras_lados(radio) + self.crear_esferas_lados(radio)
+    
+    def crear_centros_lados( self, radio):
+        ceter_left = clean_tri(pv.Sphere(radius=radio, center=(0, 2, 0), theta_resolution=60, phi_resolution=60))
+        center_right = clean_tri(pv.Sphere(radius=radio, center=(0, -2, 0), theta_resolution=60, phi_resolution=60))
+        return [ceter_left, center_right]
 
     #Creación de actores a partir de array de esferas, con color y visibilidad especificados
     def crear_actores(self, meshes, color, visible):
@@ -204,9 +250,14 @@ class MainWindow(QMainWindow):
 
         return actores
     
-    def crear_huecos(self, esferas):
+    def crear_huecos(self, esferas, has_sides):
         L = 2.3 #Tamaño del cubo, ajustar a gusto
-        cube = clean_tri(pv.Cube(center=(0, 0, 0), x_length=L, y_length=L, z_length=L))
+        Y=0
+        if has_sides:
+            Y=6
+        else:
+            Y=L
+        cube = clean_tri(pv.Cube(center=(0, 0, 0), x_length=L, y_length=Y, z_length=L))
         
         # Boolean difference
         cutter = esferas[0].copy()
